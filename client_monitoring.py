@@ -129,7 +129,7 @@ def get_client_info_by_mac(mac_address, dnac_auth):
 
 def get_client_detail(mac_address, timestamp, dnac_auth):
     """
-    This function will return the client_detial info for the wireless client using the MAC address {mac_address},
+    This function will return the client_detail info for the wireless client using the MAC address {mac_address},
     at a specific timestamp in epoch msec
     100 API calls/minute
     :param mac_address: client MAC address
@@ -281,6 +281,11 @@ def main():
                             "text": "Wireless Client Notification",
                             "weight": "bolder",
                             "size": "large"
+                        },
+                        {
+                            "type": "TextBlock",
+                            "text": "Cisco DNA Center identified low wireless performance for this client:",
+                            "wrap": True
                         },
                         {
                             "type": "FactSet",

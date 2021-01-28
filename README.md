@@ -1,5 +1,5 @@
 
-# Cisco DNA Center Proximity App
+# Cisco DNA Center Wireless Clients Monitoring
 
 
 This repo is for an application that will monitor critical wireless clients connected to a Cisco DNA Center managed
@@ -18,6 +18,7 @@ This app is to be used only in demo or lab environments, it is not written for p
 
 **Usage**
 
+Sample Output:
 
  
  This sample code is for proof of concepts and labs
