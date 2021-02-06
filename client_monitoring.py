@@ -44,11 +44,8 @@ from requests.auth import HTTPBasicAuth  # for Basic Auth
 from datetime import datetime
 
 from config import DNAC_URL, DNAC_PASS, DNAC_USER
-
 from config import CLIENT_USERNAME, CLIENT_MAC
-
 from config import BW_LOW, HEALTH_LOW, COUNTER_MAX, TIME_INTERVAL, SNR
-
 from config import BOT_TOKEN, WEBEX_SPACE, WEBEX_TEAMS_URL
 
 urllib3.disable_warnings(InsecureRequestWarning)  # disable insecure https warnings
@@ -178,8 +175,13 @@ def post_room_card_message(space_name, card_message):
 
 def main():
     """
-
-    :return:
+    This application will monitor a wireless user client device.
+    It will identify when the client experiences poor performance:
+     - decreased total transmit and receive data
+     - lower client health score
+     - low SNR value
+    If any of the above conditions are true, exceeding a predefined number of consecutive polling intervals,
+    it will create a notification to Webex Teams
     """
     # logging, debug level, to file {application_run.log}
     logging.basicConfig(
@@ -196,8 +198,8 @@ def main():
     # obtain the Cisco DNA Center Auth Token
     dnac_auth = get_dnac_jwt_token(DNAC_AUTH)
 
-    # Use this section if using the username to identify the wireless client MAC address
     # If client MAC Address not found, continue with pre-configured MAC Address
+
     all_client_info = get_client_info_by_name(CLIENT_USERNAME, dnac_auth)
     client_mac = ''
     if all_client_info != []:
@@ -214,22 +216,25 @@ def main():
         print('\nWireless Client MAC Address found: ', client_mac, '\n')
 
     # start to collect data about the client to monitor
+    # poll the client until notification will be sent ot Webex
 
     alert_count = 0  # used to detect if any of the minimum quality conditions are triggered, 3 consecutive times
 
     while alert_count < COUNTER_MAX:
 
-        alert = False  # initialize the alert flag
+        # initialize the alert flag, used to identify if any conditions of client poor performance are met
+        alert = False
 
-        # get a new token every time, avoid token expired after 60 minutes
+        # get a new token every time, to avoid token expiration after 60 minutes
         dnac_auth = get_dnac_jwt_token(DNAC_AUTH)
 
-        # identify the epoch time msec
+        # find out the epoch time msec
         timestamp = get_epoch_time()
 
         # receive the client detail info for the client with the MAC address at a specific timestamp
         client_info = get_client_detail(client_mac, timestamp, dnac_auth)
 
+        # parse the total data transfer, ap name, snr, data rate, location, ssid
         try:
             health_score = client_info['detail']['healthScore']
             for score in health_score:
@@ -252,15 +257,17 @@ def main():
             alert = True
         if total_data_transfer <= BW_LOW:
             alert = True
+
+        # if any of the above conditions are true, increase the alert_count
+        # if performance improved during this poll interval, reset the alert_count
         if alert:
             alert_count += 1
-            # verify if this is the 3 consecutive failure
         else:
             alert_count = 0
         print('Alert: ', alert, alert_count)
         time.sleep(TIME_INTERVAL * 60)
 
-    # send alerts to Webex Teams
+    # send notifications to Webex Teams
 
     # find the Webex Teams space id
     space_id = get_room_id(WEBEX_SPACE)
