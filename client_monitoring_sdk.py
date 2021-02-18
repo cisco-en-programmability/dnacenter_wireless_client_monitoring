@@ -25,7 +25,6 @@ __version__ = "0.1.0"
 __copyright__ = "Copyright (c) 2020 Cisco and/or its affiliates."
 __license__ = "Cisco Sample Code License, Version 1.1"
 
-
 import requests
 import urllib3
 import json
@@ -46,7 +45,8 @@ from datetime import datetime
 from config import DNAC_URL, DNAC_PASS, DNAC_USER
 from config import CLIENT_USERNAME, CLIENT_MAC
 from config import BW_LOW, HEALTH_LOW, COUNTER_MAX, TIME_INTERVAL, SNR
-from config import BOT_TOKEN, WEBEX_SPACE, WEBEX_TEAMS_URL
+from config import WHATSOP_BOT_AUTH, WHATSOP_ROOM, WEBEX_TEAMS_URL
+from config import WEBHOOK_RECEIVER_URL, WEBHOOK_HEADER
 from dnacentersdk import DNACenterAPI
 
 urllib3.disable_warnings(InsecureRequestWarning)  # disable insecure https warnings
@@ -68,7 +68,7 @@ def get_epoch_time():
     This function will return the epoch time for current time
     :return: epoch time including msec
     """
-    epoch = time.time()*1000
+    epoch = time.time() * 1000
     return int(epoch)
 
 
@@ -81,7 +81,7 @@ def get_room_id(room_name):
     """
     room_id = None
     url = WEBEX_TEAMS_URL + '/v1/rooms' + '?sortBy=lastactivity&max=1000'
-    header = {'content-type': 'application/json', 'authorization': BOT_TOKEN}
+    header = {'content-type': 'application/json', 'authorization': WHATSOP_BOT_AUTH}
     space_response = requests.get(url, headers=header, verify=False)
     space_list_json = space_response.json()
     space_list = space_list_json['items']
@@ -98,8 +98,20 @@ def post_room_card_message(card_message):
     :return: none
     """
     url = WEBEX_TEAMS_URL + '/messages'
-    header = {'content-type': 'application/json', 'authorization': BOT_TOKEN}
+    header = {'content-type': 'application/json', 'authorization': WHATSOP_BOT_AUTH}
     requests.post(url, data=json.dumps(card_message), headers=header, verify=False)
+
+
+def send_client_details(payload, webhook_url, header):
+    """
+    This function will send the "payload" using the POST method, to the {webhook_url} using the {header}
+    :param payload: content to be sent
+    :param webhook_url: destination url
+    :param header: header required
+    :return: status code
+    """
+    response = requests.post(webhook_url, data=json.dumps(payload), headers=header, verify=False)
+    return response.status_code, response.text
 
 
 def main():
@@ -130,7 +142,8 @@ def main():
 
     # If client MAC Address not found, continue with pre-configured MAC Address
 
-    all_client_info = dnac_api.clients.get_client_enrichment_details(headers={'entity_type': 'network_user_id', 'entity_value': CLIENT_USERNAME})
+    all_client_info = dnac_api.clients.get_client_enrichment_details(
+        headers={'entity_type': 'network_user_id', 'entity_value': CLIENT_USERNAME})
     client_mac = ''
     if all_client_info != []:
         for client in all_client_info:
@@ -196,12 +209,32 @@ def main():
         else:
             alert_count = 0
         print('Alert: ', alert, alert_count)
+
+        # send the client data to the webhook receiver, to enable the bot functionality
+        # prepare the payload
+        current_time = str(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        client_report = {
+                            'username': CLIENT_USERNAME,
+                            'details': {
+                                'mac_address': client_mac,
+                                'location': location,
+                                'access_point': ap_name,
+                                'ssid': ssid,
+                                'health_score': health_score,
+                                'total_data': total_data_transfer,
+                                'snr': snr,
+                                'timestamp': current_time
+                            }
+        }
+        response = send_client_details(client_report, WEBHOOK_RECEIVER_URL, WEBHOOK_HEADER)
+        print('\nWireless Client POST API status: ', response[1])
+
         time.sleep(TIME_INTERVAL * 60)
 
     # send notifications to Webex Teams
 
     # find the Webex Teams space id
-    space_id = get_room_id(WEBEX_SPACE)
+    space_id = get_room_id(WHATSOP_ROOM)
 
     card_message = {
         "roomId": space_id,
@@ -269,11 +302,11 @@ def main():
                             "title": "Cisco DNA Center Client 360",
                             "url": DNAC_URL + '/dna/assurance/client/details?macAddress=' + client_mac
                         }
-                        #{
+                        # {
                         #    "type": "Action.openURL",
                         #    "title": "ServiceNow incident " + issue_number,
                         #    "url": jira_issue_url
-                        #}
+                        # }
                     ]
                 }
             }
@@ -281,6 +314,8 @@ def main():
     }
 
     post_room_card_message(card_message)
+
+
 
     print('Webex Teams notification message posted')
 

@@ -46,7 +46,7 @@ from datetime import datetime
 from config import DNAC_URL, DNAC_PASS, DNAC_USER
 from config import CLIENT_USERNAME, CLIENT_MAC
 from config import BW_LOW, HEALTH_LOW, COUNTER_MAX, TIME_INTERVAL, SNR
-from config import BOT_TOKEN, WEBEX_SPACE, WEBEX_TEAMS_URL
+from config import WHATSOP_BOT_AUTH, WHATSOP_ROOM, WEBEX_TEAMS_URL
 
 urllib3.disable_warnings(InsecureRequestWarning)  # disable insecure https warnings
 
@@ -150,7 +150,7 @@ def get_room_id(room_name):
     """
     room_id = None
     url = WEBEX_TEAMS_URL + '/v1/rooms' + '?sortBy=lastactivity&max=1000'
-    header = {'content-type': 'application/json', 'authorization': BOT_TOKEN}
+    header = {'content-type': 'application/json', 'authorization': WHATSOP_BOT_AUTH}
     space_response = requests.get(url, headers=header, verify=False)
     space_list_json = space_response.json()
     space_list = space_list_json['items']
@@ -169,7 +169,7 @@ def post_room_card_message(space_name, card_message):
     """
     space_id = get_room_id(space_name)
     url = WEBEX_TEAMS_URL + '/messages'
-    header = {'content-type': 'application/json', 'authorization': BOT_TOKEN}
+    header = {'content-type': 'application/json', 'authorization': WHATSOP_BOT_AUTH}
     requests.post(url, data=json.dumps(card_message), headers=header, verify=False)
 
 
@@ -270,7 +270,7 @@ def main():
     # send notifications to Webex Teams
 
     # find the Webex Teams space id
-    space_id = get_room_id(WEBEX_SPACE)
+    space_id = get_room_id(WHATSOP_ROOM)
 
     card_message = {
         "roomId": space_id,
@@ -349,7 +349,7 @@ def main():
         ]
     }
 
-    post_room_card_message(WEBEX_SPACE, card_message)
+    post_room_card_message(WHATSOP_ROOM, card_message)
 
     print('Webex Teams notification message posted')
 

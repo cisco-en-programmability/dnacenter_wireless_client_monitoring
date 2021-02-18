@@ -1,3 +1,5 @@
 requests
 urllib3
 dnacentersdk==2.0.2
+flask
+Flask-BasicAuth
